@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Project Hub DB</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --badge-done-bg: rgba(46, 160, 67, 0.15);
+      --badge-done-text: #3fb950;
+      --badge-wip-bg: rgba(210, 153, 34, 0.15);
+      --badge-wip-text: #d29922;
+      --badge-cat-bg: rgba(88, 166, 255, 0.15);
+      --badge-cat-text: #58a6ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* Controls (Search & Filters) */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .controls input,
+    .controls select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.6rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .controls input {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .controls input:focus,
+    .controls select:focus {
+      border-color: var(--accent);
+    }
+
+    /* Project Cards Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    .project-id {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .badges {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-category {
+      background: var(--badge-cat-bg);
+      color: var(--badge-cat-text);
+    }
+
+    .badge-status-done {
+      background: var(--badge-done-bg);
+      color: var(--badge-done-text);
+    }
+
+    .badge-status-wip {
+      background: var(--badge-wip-bg);
+      color: var(--badge-wip-text);
+    }
+
+    .card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: #ffffff;
+    }
+
+    .card p.comment {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-bottom: 1.25rem;
+      flex-grow: 1;
+    }
+
+    .card-footer {
+      border-top: 1px solid var(--border);
+      padding-top: 0.85rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      text-decoration: none;
+      background: var(--accent);
+      color: #0d1117;
+      font-weight: 600;
+      font-size: 0.88rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
+      transition: background 0.15s ease;
+    }
+
+    .btn-link:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-disabled {
+      background: var(--border);
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      padding: 3rem 1rem;
+      grid-column: 1 / -1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>My Project Hub</h1>
+        <p>Projektübersicht &amp; Schülerarbeiten</p>
+      </div>
+      <div id="countBadge" style="color: var(--muted); font-size: 0.9rem;"></div>
+    </header>
+
+    <div class="controls">
+      <input type="text" id="searchInput" placeholder="Suche nach ID, Titel oder Kommentar..." />
+      <select id="categoryFilter">
+        <option value="ALL">Alle Kategorien</option>
+      </select>
+      <select id="statusFilter">
+        <option value="ALL">Alle Status</option>
+      </select>
+    </div>
+
+    <main id="projectGrid" class="grid">
+      <div class="empty-state">Lade Projekte...</div>
+    </main>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. PASTE YOUR PUBLISHED GOOGLE SHEET CSV LINK BELOW:
+    // =========================================================================
+    const SHEET_CSV_URL = ""; 
+
+    // Fallback data matching your screenshot (used if SHEET_CSV_URL is empty)
+    const FALLBACK_DATA = [
+      {
+        ID: "PRJ-001",
+        Title: "Python Blockbreaker",
+        Category: "Schülerarbeit",
+        Status: "Erledigt",
+        Link: "https://scr2py.github.io/pyBlockbreaker/",
+        Comment: "Spiel eines Schülers 10 Jahre"
+      }
+    ];
+
+    let allProjects = [];
+
+    // Simple CSV parser that handles quoted commas
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"' && inQuotes && nextChar === '"') {
+          current += '"';
+          i++;
+        } else if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          row.push(current.trim());
+          current = "";
+        } else if ((char === "\n" || char === "\r") && !inQuotes) {
+          if (char === "\r" && nextChar === "\n") i++;
+          row.push(current.trim());
+          if (row.some(cell => cell !== "")) rows.push(row);
+          row = [];
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      if (current || row.length) {
+        row.push(current.trim());
+        if (row.some(cell => cell !== "")) rows.push(row);
+      }
+      return rows;
+    }
+
+    async function loadProjects() {
+      if (!SHEET_CSV_URL) {
+        allProjects = FALLBACK_DATA;
+        initUI();
+        return;
+      }
+
+      try {
+        const res = await fetch(SHEET_CSV_URL);
+        const csvText = await res.text();
+        const rows = parseCSV(csvText);
+
+        // Find the header row (looks for "ID" and "Title" in case Row 1 is the sheet title banner)
+        const headerIndex = rows.findIndex(r => r.includes("ID") && r.includes("Title"));
+        if (headerIndex === -1) throw new Error("Header row not found");
+
+        const headers = rows[headerIndex];
+        allProjects = rows
+          .slice(headerIndex + 1)
+          .map(r => {
+            const obj = {};
+            headers.forEach((h, idx) => (obj[h] = r[idx] || ""));
+            return obj;
+          })
+          .filter(p => p.ID || p.Title); // Ignore empty template rows
+
+        initUI();
+      } catch (err) {
+        console.error("Fehler beim Laden der CSV:", err);
+        document.getElementById("projectGrid").innerHTML =
+          `<div class="empty-state">Daten konnten nicht geladen werden. Bitte CSV-Link prüfen.</div>`;
+      }
+    }
+
+    function populateFilters() {
+      const categories = [...new Set(allProjects.map(p => p.Category).filter(Boolean))];
+      const statuses = [...new Set(allProjects.map(p => p.Status).filter(Boolean))];
+
+      const catSelect = document.getElementById("categoryFilter");
+      categories.forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        catSelect.appendChild(opt);
+      });
+
+      const statSelect = document.getElementById("statusFilter");
+      statuses.forEach(st => {
+        const opt = document.createElement("option");
+        opt.value = st;
+        opt.textContent = st;
+        statSelect.appendChild(opt);
+      });
+    }
+
+    function renderCards() {
+      const grid = document.getElementById("projectGrid");
+      const query = document.getElementById("searchInput").value.toLowerCase();
+      const selectedCat = document.getElementById("categoryFilter").value;
+      const selectedStatus = document.getElementById("statusFilter").value;
+
+      const filtered = allProjects.filter(p => {
+        const matchesSearch =
+          (p.ID || "").toLowerCase().includes(query) ||
+          (p.Title || "").toLowerCase().includes(query) ||
+          (p.Comment || "").toLowerCase().includes(query);
+        const matchesCat = selectedCat === "ALL" || p.Category === selectedCat;
+        const matchesStatus = selectedStatus === "ALL" || p.Status === selectedStatus;
+        return matchesSearch && matchesCat && matchesStatus;
+      });
+
+      document.getElementById("countBadge").textContent = `${filtered.length} Projekt(e)`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="empty-state">Keine passenden Projekte gefunden.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered
+        .map(p => {
+          const isDone = (p.Status || "").toLowerCase().includes("erledigt");
+          const statusClass = isDone ? "badge-status-done" : "badge-status-wip";
+          const hasLink = p.Link && p.Link.startsWith("http");
+
+          return `
+            <article class="card">
+              <div>
+                <div class="card-top">
+                  <span class="project-id">${escapeHTML(p.ID)}</span>
+                  <div class="badges">
+                    ${p.Category ? `<span class="badge badge-category">${escapeHTML(p.Category)}</span>` : ""}
+                    ${p.Status ? `<span class="badge ${statusClass}">${escapeHTML(p.Status)}</span>` : ""}
+                  </div>
+                </div>
+                <h2>${escapeHTML(p.Title)}</h2>
+                <p class="comment">${escapeHTML(p.Comment || "Keine Beschreibung vorhanden.")}</p>
+              </div>
+              <div class="card-footer">
+                ${
+                  hasLink
+                    ? `<a href="${escapeHTML(p.Link)}" target="_blank" rel="noopener noreferrer" class="btn-link">Projekt öffnen ↗</a>`
+                    : `<span class="btn-link btn-disabled">Kein Link</span>`
+                }
+              </div>
+            </article>
+          `;
+        })
+        .join("");
+    }
+
+    function escapeHTML(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function initUI() {
+      populateFilters();
+      renderCards();
+      document.getElementById("searchInput").addEventListener("input", renderCards);
+      document.getElementById("categoryFilter").addEventListener("change", renderCards);
+      document.getElementById("statusFilter").addEventListener("change", renderCards);
+    }
+
+    loadProjects();
+  </script>
+</body>
+</html>
